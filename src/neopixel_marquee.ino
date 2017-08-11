@@ -5,9 +5,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
-const char* ssid = "ssid";
-const char* password = "password";
-
 #define PIN 4
 
 Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(144, 7, PIN,
@@ -52,18 +49,20 @@ const uint16_t colors[] = {
 void setup() {
   matrix.begin();
   matrix.setTextWrap(false);
-  matrix.setBrightness(20);
+  matrix.setBrightness(100);
   matrix.setTextColor(colors[0]);
 
   Serial.begin(115200);
   Serial.println("Booting");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin();
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("Connection Failed! Rebooting...");
     delay(5000);
     ESP.restart();
   }
+
+  WiFiServer server(80);
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -97,7 +96,7 @@ void loop() {
 
   matrix.fillScreen(0);
   matrix.setCursor(x, 0);
-  matrix.print(F("ERROR 404: AEROBOTS NOT FOUND"));
+  matrix.print(F("AEROBOTS BRIDGE"));
   if(--x < -190) {
     x = matrix.width();
 
@@ -109,4 +108,3 @@ void loop() {
   matrix.show();
   delay(10);
 }
-
