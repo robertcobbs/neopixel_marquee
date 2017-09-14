@@ -49,7 +49,7 @@ const uint16_t colors[] = {
    return matrix.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
  }
 
- String message = "Aerobots Bridge";
+ String message = "AEROBOTS BRIDGE";
 
 void setup() {
   matrix.begin();
@@ -116,10 +116,9 @@ void loop() {
   matrix.fillScreen(0);
   matrix.setCursor(x, 0);
   matrix.print(message);
-  if(--x < -190) {
+  if(--x < -matrix.width()) {
     x = matrix.width();
-
-  }
+ }
   if(++pos > 255) {
     pos = 0;
   }
@@ -127,9 +126,3 @@ void loop() {
   matrix.show();
   delay(10);
 }
-
-int getMessageWidth() {
-  getTextBounds(message,);
-}
-
-
