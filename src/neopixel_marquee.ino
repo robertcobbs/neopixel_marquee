@@ -49,13 +49,24 @@ const uint16_t colors[] = {
    return matrix.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
  }
 
- String message = "AEROBOTS BRIDGE";
+String message = "AEROBOTS BRIDGE";
+char bufferstr[64];
+int x = matrix.width();
+int y = matrix.height();
+int pos = 0;
+int16_t upper_left_x, upper_left_y;
+uint16_t message_width, message_height;
+int marquee_display_mode = 1;
+int marquee_text_red = 255;
+int marquee_text_green = 255;
+int marquee_text_blue = 255;
+int marquee_text_color_mode = 1;
 
 void setup() {
   matrix.begin();
   matrix.setTextWrap(false);
   matrix.setBrightness(100);
-  matrix.setTextColor(colors[0]);
+  set_marquee_text_color();
 
   Serial.begin(115200);
   Serial.println("Booting");
@@ -71,15 +82,34 @@ void setup() {
     server.send(200, "text/plain", "hello");
   });
 
-  server.on("/api/test/message", HTTP_GET, [&](){
-    server.send(200, "text/plain", "hello");
+  server.on("/api/text/message", HTTP_POST, [&](){
+    if (server.args() != 1) return server.send(500, "text/plain", "Requires one argument.");
+    message = server.arg(0);
+    server.send(200, "text/plain", "OK");
   });
 
-  server.on("/api/test", HTTP_POST, [&](){
-    if(server.args() == 0) return server.send(500, "text/plain", "Requires at least one argument.");
-    message = server.arg(0);
-    server.send(200, "text/plain", "a-okay");
+  server.on("/api/display/mode", HTTP_POST, [&](){
+    if (server.args() != 1) return server.send(500, "text/plain", "Requires one argument.");
+    marquee_display_mode = server.arg(0).toInt();
+    server.send(200, "text/plain", "OK");
   });
+  
+  server.on("/api/text/color/solid", HTTP_POST, [&](){
+    if (server.args() != 3) return server.send(500, "text/plain", "Requires three arguments.");
+    marquee_text_red = server.arg(0).toInt();
+    marquee_text_green = server.arg(1).toInt();
+    marquee_text_blue = server.arg(2).toInt();
+    marquee_text_color_mode = 1;
+    server.send(200, "text/plain", "OK");
+    set_marquee_text_color();
+  });
+
+  server.on("/api/text/color/wheel", HTTP_POST, [&](){
+    server.send(200, "text/plain", "OK");
+    marquee_text_color_mode = 2;
+    set_marquee_text_color();
+  });
+
   server.begin(); // Web server start
 
   ArduinoOTA.onStart([]() {
@@ -105,24 +135,76 @@ void setup() {
   Serial.println(WiFi.localIP());
 }
 
-int x    = matrix.width();
-int pos = 0;
+void set_marquee_text_color() {
+  if (marquee_text_color_mode == 1){
+    matrix.setTextColor(matrix.Color(marquee_text_red, marquee_text_green, marquee_text_blue));
+  }
+  else if (marquee_text_color_mode ==2){
+    if (++pos > 255) {
+      pos = 0;
+    }
+    matrix.setTextColor(Wheel(pos));
+  }
+}
+
+void static_text() {
+  matrix.fillScreen(0);
+  matrix.getTextBounds((char *)message.c_str(), 0, 0, &upper_left_x, &upper_left_y, &message_width, &message_height);
+  x = (matrix.width() - message_width)/2;
+  matrix.setCursor(x,0);
+  matrix.print(message);
+  set_marquee_text_color();  
+  matrix.show();
+}
+
+void horizontal_scrolling_text() {
+  matrix.fillScreen(0);
+  matrix.setCursor(x, 0);
+  matrix.print(message);
+  if (--x < -matrix.width()) {
+    x = matrix.width();
+ }
+ set_marquee_text_color();
+  matrix.show();
+}
+
+void vertical_scrolling_text() {
+  matrix.fillScreen(0);
+  matrix.getTextBounds((char *)message.c_str(), 0, 0, &upper_left_x, &upper_left_y, &message_width, &message_height);
+  x = (matrix.width() - message_width)/2;
+  matrix.setCursor(x,y);
+  matrix.print(message);
+  if (--y == -2) {
+    delay(2500);
+  }
+  if (y < -matrix.height()){
+    y = matrix.height();
+  }
+  set_marquee_text_color();  
+  matrix.show();
+
+  delay (100);
+}
+
+void run_marquee() {
+  switch (marquee_display_mode) {
+    case 1:
+      static_text();
+      break;
+    case 2:
+      horizontal_scrolling_text();
+      break;
+    case 3:
+      vertical_scrolling_text();
+      break;
+  }
+}
 
 void loop() {
   ArduinoOTA.handle();
   server.handleClient();
 
+  run_marquee();
 
-  matrix.fillScreen(0);
-  matrix.setCursor(x, 0);
-  matrix.print(message);
-  if(--x < -matrix.width()) {
-    x = matrix.width();
- }
-  if(++pos > 255) {
-    pos = 0;
-  }
-  matrix.setTextColor(Wheel(pos));
-  matrix.show();
   delay(10);
 }
