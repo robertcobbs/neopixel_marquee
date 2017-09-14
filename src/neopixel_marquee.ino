@@ -4,8 +4,11 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <ESP8266WebServer.h>
 
 #define PIN 4
+
+ESP8266WebServer server(80);
 
 Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(144, 7, PIN,
   NEO_MATRIX_TOP     + NEO_MATRIX_RIGHT +
@@ -46,6 +49,8 @@ const uint16_t colors[] = {
    return matrix.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
  }
 
+ String message = "Aerobots Bridge";
+
 void setup() {
   matrix.begin();
   matrix.setTextWrap(false);
@@ -62,7 +67,20 @@ void setup() {
     ESP.restart();
   }
 
-  WiFiServer server(80);
+  server.on("/api/test", HTTP_GET, [&](){
+    server.send(200, "text/plain", "hello");
+  });
+
+  server.on("/api/test/message", HTTP_GET, [&](){
+    server.send(200, "text/plain", "hello");
+  });
+
+  server.on("/api/test", HTTP_POST, [&](){
+    if(server.args() == 0) return server.send(500, "text/plain", "Requires at least one argument.");
+    message = server.arg(0);
+    server.send(200, "text/plain", "a-okay");
+  });
+  server.begin(); // Web server start
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -92,11 +110,12 @@ int pos = 0;
 
 void loop() {
   ArduinoOTA.handle();
+  server.handleClient();
 
 
   matrix.fillScreen(0);
   matrix.setCursor(x, 0);
-  matrix.print(F("AEROBOTS BRIDGE"));
+  matrix.print(message);
   if(--x < -190) {
     x = matrix.width();
 
@@ -108,3 +127,9 @@ void loop() {
   matrix.show();
   delay(10);
 }
+
+int getMessageWidth() {
+  getTextBounds(message,);
+}
+
+
